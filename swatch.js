@@ -1,4 +1,4 @@
-/*
+﻿/*
 Copyright (C) 2012 by Matt Kotsenas -- MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -177,7 +177,7 @@ var swatch = (function (document, window) {
     /*
     * Clamp a value to the nearest unsigned byte (0 - 255). 
     */
-    var clamptoUByte = function (val) {
+    var clampToUByte = function (val) {
         // ParseInt returns an int even if val was already an int, so there is no harm in re-parsing.
         val = parseInt(val, 10);
 
@@ -188,19 +188,48 @@ var swatch = (function (document, window) {
         return val;
     };
 
+    /*
+    * Clamp a value to the nearest float between 0 and 1 (inclusive). 
+    */
+    var clampFloatTo1 = function (val) {
+        // parseFloat returns an float even if val was already a flot, so there is no harm in re-parsing.
+        val = parseFloat(val);
+
+        if (isNaN(val)) { val = 0; }
+        val = (val > 1) ? 1 : val;
+        val = (val < 0) ? 0 : val;
+
+        return val;
+    };
+
     var parseRGB = function (arg) {
-        var regex = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/;
+        var regex = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/;
 
         arg.match(regex);
-        val r = clamptoUByte(RegExp.$1);
-        val g = clamptoUByte(RegExp.$2);
-        val b = clamptoUByte(RegExp.$3);
+
+        var r = clampToUByte(RegExp.$1);
+        var g = clampToUByte(RegExp.$2);
+        var b = clampToUByte(RegExp.$3);
 
         return { "r": r, "g": g, "b": b, "a": 1 };
     };
 
-        // The format of an RGB value in hexadecimal notation is a '#' immediately followed by either three or six hexadecimal characters. http://www.w3.org/TR/CSS2/syndata.html#color-units
-    colorHelper.parseHex = function (arg) {
+    var parseRGBA = function () {
+        var regex = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)S/;
+
+        arg.match(regex);
+
+        var r = clampToUByte(RegExp.$1);
+        var g = clampToUByte(RegExp.$2);
+        var b = clampToUByte(RegExp.$3);
+
+        var a = clampFloatTo1(RegExp.$4);
+
+        return { "r": r, "g": g, "b": b, "a": a };
+    };
+
+    // The format of an RGB value in hexadecimal notation is a '#' immediately followed by either three or six hexadecimal characters. http://www.w3.org/TR/CSS2/syndata.html#color-units
+    var parseHex = function (arg) {
         // The three-digit RGB notation (#rgb) is converted into six-digit form (#rrggbb) by replicating digits, not by adding zeros.
         // For example, #fb0 expands to #ffbb00.
         var hex3ToHex6 = function (hex3) {
@@ -241,16 +270,80 @@ var swatch = (function (document, window) {
         return hex6ToRgba(hex);
     };
 
-    var parseRGBA = function () { };
+    /*
+    * Convert HSLA to RGBA. Algorithm from http://en.wikipedia.org/wiki/HSL_color_space#From_HSL
+    */
+    var HSLAToRGBA = function (h, s, l, a) {
+        // Given an HSL color with hue H ∈ [0°, 360°), saturation SHSL ∈ [0, 1], and lightness L ∈ [0, 1]. First, we find chroma:
+        var c = (1 - Math.abs(2 * l - 1)) * s;
+
+        // Then we can, again, find a point (R1, G1, B1) along the bottom three faces of the RGB cube, with the same hue and chroma
+        // as our color (using the intermediate value X for the second largest component of this color):
+        var hPrime = h / 60;
+        var x = c * (1 - Math.abs((hPrime % 2) - 1))
+
+        var rPrime = 0;
+        var gPrime = 0;
+        var bPrime = 0;
+
+        if ((hPrime >= 0) && (hPrime < 1)) { 
+            rPrime = c;
+            gPrime = x;
+            bPrime = 0;
+        }
+        if ((hPrime >= 1) && (hPrime < 2)) { 
+            rPrime = x;
+            gPrime = c;
+            bPrime = 0;
+        }
+        if ((hPrime >= 2) && (hPrime < 3)) { 
+            rPrime = 0;
+            gPrime = c;
+            bPrime = x;
+        }
+        if ((hPrime >= 3) && (hPrime < 4)) { 
+            rPrime = 0;
+            gPrime = x;
+            bPrime = c;
+        }
+        if ((hPrime >= 4) && (hPrime < 5)) { 
+            rPrime = x;
+            gPrime = 0;
+            bPrime = c;
+        }
+        if ((hPrime >= 5) && (hPrime < 6)) { 
+            rPrime = c;
+            gPrime = 0;
+            bPrime = x;
+        }
+
+        // Finally, we can find R, G, and B by adding the same amount to each component, to match lightness:
+        var m = l - (1/2) * c;
+
+        var r = rPrime + m;
+        var g = gPrime + m;
+        var b = bPrime + m;
+
+        return { "r": r, "g": g, "b": b, "a": a };
+    };
+
     var parseHSL = function () { };
     var parseHSLA = function () { };
-    var parseNamedColor = function () { };
+
+    /*
+    * Remove leading and trailing whitespace from a string.
+    */
+    var trim = function (text) {
+        return text.replace(/^\s*(\S*(?:\s+\S+)*)\s*$/, "$1")
+    };
 
     // This function takes a color string and applies heuristics to determine what the input format is, then applies one of the other transform functions.
-    var parseColor = function (color) {
+    var parse = function (color) {
         var regexRGB = /rgb\(/;
         var regexRGBA = /rgba\(/;
         var regexHex = /#/;
+
+        var color = trim(color);
 
         if (NAMED_COLORS[color] !== undefined) { return NAMED_COLORS[color]; }
         if (regexRGB.test(color)) { return parseRGB(color); }
@@ -258,6 +351,9 @@ var swatch = (function (document, window) {
         if (regexHex.test(color)) { return parseHex(color); }
         throw "Could not parse color: " + color + ".";
     };
+
+
+    swatch.parse = parse;
 
     return swatch;
 })(document, window);
