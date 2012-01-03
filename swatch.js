@@ -202,6 +202,50 @@ var swatch = (function (document, window) {
         return val;
     };
 
+    /*
+    * Takes an int value and converts to a base-16 hex value. Prepends zeros if needed to ensure that all values are two-digits.
+    */
+    var intToHex = function (int) {
+        var retVal = int.toString(16);
+
+        if (retVal.length === 1) { retVal = "0" + retVal; }
+
+        return retVal;
+    };
+
+    /*
+    * Creates the resulting data-object that the library user will see. This object should hold the raw colors in all easily consumable formats,
+    * so redundancy is traded for ease-of-use.
+    *
+    * If the environment supports ES5 .defineProperty, then we'll use it to prevent the user from overwriting values. Since we want to keep the Swatch objects
+    * light, updating one value of the object won't update other representations. Non-ES5 environments will get plain object literals.
+    */
+    var createSwatch = function (r, g, b, a) {
+        var PROPERTIES_LIST = ["r", "g", "b", "a", "rgb", "rgba", "hex"];
+        var data = {};
+
+        data.r = r;
+        data.g = g;
+        data.b = b;
+        data.a = a;
+
+        data.rgb = "rgb(" + r + "," + g + "," + b + ")";
+        data.rgba = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+
+        data.hex = "#" + intToHex(r) + intToHex(g) + intToHex(b);
+
+        // Check for ES5 .defineProperty: see Section 15.2.3.5 of http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-262.pdf
+        // and http://stackoverflow.com/questions/4819693/working-around-ie8s-broken-object-defineproperty-implementation
+        var canDefine = (!!Object.defineProperty && Object.defineProperty({}, "x", { get: function () { return true } }).x);
+        if (canDefine) {
+            for (var i = 0; i < PROPERTIES_LIST.length; i++) {
+                Object.defineProperty(data, PROPERTIES_LIST[i], { writable: false, enumerable: true, configurable: false });
+            }
+        }
+
+        return data;
+    };
+
     var parseRGB = function (arg) {
         var regex = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/;
 
@@ -286,39 +330,39 @@ var swatch = (function (document, window) {
         var gPrime = 0;
         var bPrime = 0;
 
-        if ((hPrime >= 0) && (hPrime < 1)) { 
+        if ((hPrime >= 0) && (hPrime < 1)) {
             rPrime = c;
             gPrime = x;
             bPrime = 0;
         }
-        if ((hPrime >= 1) && (hPrime < 2)) { 
+        if ((hPrime >= 1) && (hPrime < 2)) {
             rPrime = x;
             gPrime = c;
             bPrime = 0;
         }
-        if ((hPrime >= 2) && (hPrime < 3)) { 
+        if ((hPrime >= 2) && (hPrime < 3)) {
             rPrime = 0;
             gPrime = c;
             bPrime = x;
         }
-        if ((hPrime >= 3) && (hPrime < 4)) { 
+        if ((hPrime >= 3) && (hPrime < 4)) {
             rPrime = 0;
             gPrime = x;
             bPrime = c;
         }
-        if ((hPrime >= 4) && (hPrime < 5)) { 
+        if ((hPrime >= 4) && (hPrime < 5)) {
             rPrime = x;
             gPrime = 0;
             bPrime = c;
         }
-        if ((hPrime >= 5) && (hPrime < 6)) { 
+        if ((hPrime >= 5) && (hPrime < 6)) {
             rPrime = c;
             gPrime = 0;
             bPrime = x;
         }
 
         // Finally, we can find R, G, and B by adding the same amount to each component, to match lightness:
-        var m = l - (1/2) * c;
+        var m = l - (1 / 2) * c;
 
         var r = rPrime + m;
         var g = gPrime + m;
@@ -345,11 +389,15 @@ var swatch = (function (document, window) {
 
         var color = trim(color);
 
-        if (NAMED_COLORS[color] !== undefined) { return NAMED_COLORS[color]; }
-        if (regexRGB.test(color)) { return parseRGB(color); }
-        if (regexRGBA.test(color)) { return parseRGBA(color); }
-        if (regexHex.test(color)) { return parseHex(color); }
-        throw "Could not parse color: " + color + ".";
+        var retVal;
+
+        if (NAMED_COLORS[color] !== undefined) { retVal = NAMED_COLORS[color]; }
+        else if (regexRGB.test(color)) { retVal = parseRGB(color); }
+        else if (regexRGBA.test(color)) { retVal = parseRGBA(color); }
+        else if (regexHex.test(color)) { retVal = parseHex(color); }
+        else { throw "Could not parse color: " + color + "."; }
+
+        return createSwatch(retVal.r, retVal.g, retVal.b, retVal.a);
     };
 
 

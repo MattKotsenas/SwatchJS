@@ -57,7 +57,7 @@
                 var output = swatch[operation](input);
 
                 testCases[i].querySelector(".out-val").innerHTML = JSON.stringify(output);
-                //testCases[i].querySelector(".out-val").style.background-color = output.hex;
+                testCases[i].querySelector(".out-color").style.backgroundColor = output.hex;
             }
         </script>
     </body>
