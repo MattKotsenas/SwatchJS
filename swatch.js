@@ -263,7 +263,7 @@ var swatch = (function (document, window) {
     };
 
     var parseRGBA = function (arg) {
-        var regex = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)S/;
+        var regex = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)$/;
 
         arg.match(regex);
 
@@ -394,15 +394,27 @@ var swatch = (function (document, window) {
         var regexRGBA = /rgba\(/;
         var regexHex = /#/;
 
-        color = trim(color);
+        try {
+            color = trim(color);
+        } catch (e) { /* Trim failed (probably because color is an object). Just ignore and continue. */ }
 
         var retVal;
 
-        if (NAMED_COLORS[color] !== undefined) { retVal = NAMED_COLORS[color]; }
-        else if (regexRGB.test(color)) { retVal = parseRGB(color); }
-        else if (regexRGBA.test(color)) { retVal = parseRGBA(color); }
-        else if (regexHex.test(color)) { retVal = parseHex(color); }
-        else { throw "Could not parse color: " + color + "."; }
+        if (color.hex && regexHex.test(color.hex)) { // Test for our own Swatch object
+            // Even though we've matched our own Swatch object, re-parse to avoid possible problems
+            // where the color duck-types, but has invalid values.
+            retVal = parseHex(color.hex);
+        } else if (NAMED_COLORS[color] !== undefined) {
+            retVal = NAMED_COLORS[color];
+        } else if (regexRGB.test(color)) {
+            retVal = parseRGB(color);
+        } else if (regexRGBA.test(color)) {
+            retVal = parseRGBA(color);
+        } else if (regexHex.test(color)) {
+            retVal = parseHex(color);
+        } else {
+            throw "Could not parse color: " + color + ".";
+        }
 
         return createSwatch(retVal.r, retVal.g, retVal.b, retVal.a);
     };
