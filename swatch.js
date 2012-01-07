@@ -175,11 +175,10 @@ var swatch = (function (document, window) {
     };
 
     /*
-    * Clamp a value to the nearest unsigned byte (0 - 255). 
+    * Clamp a value to the nearest unsigned byte [0,255]. 
     */
     var clampToUByte = function (val) {
-        // ParseInt returns an int even if val was already an int, so there is no harm in re-parsing.
-        val = parseInt(val, 10);
+        val = Math.round(parseFloat(val));
 
         if (isNaN(val)) { val = 0; }
         val = (val > 255) ? 255 : val;
@@ -189,10 +188,10 @@ var swatch = (function (document, window) {
     };
 
     /*
-    * Clamp a value to the nearest float between 0 and 1 (inclusive). 
+    * Clamp a value to the nearest float in [0,1].
     */
     var clampFloatTo1 = function (val) {
-        // parseFloat returns an float even if val was already a flot, so there is no harm in re-parsing.
+        // parseFloat returns an float even if val was already a float, so there is no harm in re-parsing.
         val = parseFloat(val);
 
         if (isNaN(val)) { val = 0; }
@@ -201,6 +200,18 @@ var swatch = (function (document, window) {
 
         return val;
     };
+
+    /*
+    * Clamp a value to a normalize angle in degrees.
+    * Takes a number and returns a number in [0,360).
+    */
+    var clampAngleInDegrees = function (val) {
+        val = Math.round(parseFloat(val));
+
+        if (isNaN(val)) { val = 0; }
+
+        return (((val % 360) + 360) % 360);
+    }
 
     /*
     * Takes an int value and converts to a base-16 hex value. Prepends zeros if needed to ensure that all
@@ -230,11 +241,18 @@ var swatch = (function (document, window) {
         data.g = g;
         data.b = b;
         data.a = a;
-
         data.rgb = "rgb(" + r + "," + g + "," + b + ")";
         data.rgba = "rgba(" + r + "," + g + "," + b + "," + a + ")";
 
         data.hex = "#" + intToHex(r) + intToHex(g) + intToHex(b);
+
+        var hsla = RGBAToHSLA(r, g, b, a);
+        data.h = hsla.h;
+        data.s = hsla.s;
+        data.l = hsla.l;
+        data.hsl = "hsl(" + hsla.h + "," + hsla.s + "%," + hsla.l + "%)";
+        data.hsla = "hsla(" + hsla.h + "," + hsla.s + "%," + hsla.l + "%," + hsla.a + ")";
+
 
         // Check for ES5 .defineProperty: see Section 15.2.3.5 of http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-262.pdf
         // and http://stackoverflow.com/questions/4819693/working-around-ie8s-broken-object-defineproperty-implementation
@@ -274,6 +292,32 @@ var swatch = (function (document, window) {
         var a = clampFloatTo1(RegExp.$4);
 
         return { "r": r, "g": g, "b": b, "a": a };
+    };
+
+
+    var parseHSL = function (arg) {
+        var regex = /^hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)$/;
+
+        arg.match(regex);
+
+        var h = clampAngleInDegrees(RegExp.$1);
+        var s = clampFloatTo1(RegExp.$2 / 100);
+        var l = clampFloatTo1(RegExp.$3 / 100);
+
+        return HSLAToRGBA(h, s, l, 1);
+    };
+    var parseHSLA = function (arg) {
+        var regex = /^hsla\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*,\s*([\d\.]+)\s*\)$/;
+
+        arg.match(regex);
+
+        var h = clampAngleInDegrees(RegExp.$1);
+        var s = clampFloatTo1(RegExp.$2 / 100);
+        var l = clampFloatTo1(RegExp.$3 / 100);
+
+        var a = clampFloatTo1(RegExp.$4);
+
+        return HSLAToRGBA(h, s, l, a);
     };
 
     // The format of an RGB value in hexadecimal notation is a '#' immediately followed by either three
@@ -317,6 +361,49 @@ var swatch = (function (document, window) {
         if (hex.length === 3) { hex = hex3ToHex6(hex); }
 
         return hex6ToRgba(hex);
+    };
+
+
+    /*
+    * Convert RGBA to HSLA. Algorithm from http://easyrgb.com.
+    */
+    var RGBAToHSLA = function (r, g, b, a) {
+        // Normalize r, g, b to [0,1]
+        r = r / 255;
+        g = g / 255;
+        b = b / 255;
+
+        var minColor = Math.min(r, g, b);
+        var maxColor = Math.max(r, g, b);
+        var deltaColor = maxColor - minColor;
+
+        var l = (maxColor + minColor) / 2;
+        var h = 0;
+        var s = 0;
+
+        if (deltaColor !== 0) {
+            if (l < 0.5) { s = deltaColor / (maxColor + minColor); }
+            else { s = deltaColor / (2 - maxColor - minColor); }
+
+            var deltaR = (((maxColor - r) / 6) + (deltaColor / 2)) / deltaColor;
+            var deltaG = (((maxColor - g) / 6) + (deltaColor / 2)) / deltaColor;
+            var deltaB = (((maxColor - b) / 6) + (deltaColor / 2)) / deltaColor;
+
+            if (r === maxColor) { h = deltaB - deltaG; }
+            else if (g === maxColor) { h = (1 / 3) + r - b; }
+            else if (b === maxColor) { h = (2 / 3) + g - r; }
+            // No 'else' statement is needed because maxColor = max(r,g,b), so one of the three statements will be true
+
+            if (h < 0) { h += 1; }
+            if (h > 1) { h -= 1; }
+        }
+
+        // Algorithm puts h,s,l ∈ [0,1], so we need to scale
+        h = clampAngleInDegrees(h * 360);
+        s = Math.round(s * 100);
+        l = Math.round(l * 100);
+
+        return { "h": h, "s": s, "l": l, "a": a }
     };
 
     /*
@@ -374,11 +461,13 @@ var swatch = (function (document, window) {
         var g = gPrime + m;
         var b = bPrime + m;
 
+        // Algorithm puts r, g, b in [0,1], so we need to scale to [0,255]
+        r = clampToUByte(r * 255);
+        g = clampToUByte(g * 255);
+        b = clampToUByte(b * 255);
+
         return { "r": r, "g": g, "b": b, "a": a };
     };
-
-    var parseHSL = function () { };
-    var parseHSLA = function () { };
 
     /*
     * Remove leading and trailing whitespace from a string.
@@ -393,6 +482,8 @@ var swatch = (function (document, window) {
         var regexRGB = /rgb\(/;
         var regexRGBA = /rgba\(/;
         var regexHex = /#/;
+        var regexHSL = /hsl\(/;
+        var regexHSLA = /hsla\(/;
 
         try {
             color = trim(color);
@@ -412,6 +503,10 @@ var swatch = (function (document, window) {
             retVal = parseRGBA(color);
         } else if (regexHex.test(color)) {
             retVal = parseHex(color);
+        } else if (regexHSL.test(color)) {
+            retVal = parseHSL(color);
+        } else if (regexHSLA.test(color)) {
+            retVal = parseHSLA(color);
         } else {
             throw "Could not parse color: " + color + ".";
         }
