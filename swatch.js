@@ -203,10 +203,11 @@ var swatch = (function (document, window) {
     };
 
     /*
-    * Takes an int value and converts to a base-16 hex value. Prepends zeros if needed to ensure that all values are two-digits.
+    * Takes an int value and converts to a base-16 hex value. Prepends zeros if needed to ensure that all
+    * values are two-digits.
     */
-    var intToHex = function (int) {
-        var retVal = int.toString(16);
+    var intToHex = function (val) {
+        var retVal = val.toString(16);
 
         if (retVal.length === 1) { retVal = "0" + retVal; }
 
@@ -214,11 +215,13 @@ var swatch = (function (document, window) {
     };
 
     /*
-    * Creates the resulting data-object that the library user will see. This object should hold the raw colors in all easily consumable formats,
+    * Creates the resulting data-object that the library user will see. This object should hold the raw colors
+    * in all easily consumable formats,
     * so redundancy is traded for ease-of-use.
     *
-    * If the environment supports ES5 .defineProperty, then we'll use it to prevent the user from overwriting values. Since we want to keep the Swatch objects
-    * light, updating one value of the object won't update other representations. Non-ES5 environments will get plain object literals.
+    * If the environment supports ES5 .defineProperty, then we'll use it to prevent the user from overwriting values.
+    * Since we want to keep the Swatch objects light, updating one value of the object won't update other
+    * representations. Non-ES5 environments will get plain object literals.
     */
     var createSwatch = function (r, g, b, a) {
         var PROPERTIES_LIST = ["r", "g", "b", "a", "rgb", "rgba", "hex"];
@@ -236,7 +239,7 @@ var swatch = (function (document, window) {
 
         // Check for ES5 .defineProperty: see Section 15.2.3.5 of http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-262.pdf
         // and http://stackoverflow.com/questions/4819693/working-around-ie8s-broken-object-defineproperty-implementation
-        var canDefine = (!!Object.defineProperty && Object.defineProperty({}, "x", { get: function () { return true } }).x);
+        var canDefine = (!!Object.defineProperty && Object.defineProperty({}, "x", { get: function () { return true; } }).x);
         if (canDefine) {
             for (var i = 0; i < PROPERTIES_LIST.length; i++) {
                 Object.defineProperty(data, PROPERTIES_LIST[i], { writable: false, enumerable: true, configurable: false });
@@ -258,7 +261,7 @@ var swatch = (function (document, window) {
         return { "r": r, "g": g, "b": b, "a": 1 };
     };
 
-    var parseRGBA = function () {
+    var parseRGBA = function (arg) {
         var regex = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)S/;
 
         arg.match(regex);
@@ -272,10 +275,11 @@ var swatch = (function (document, window) {
         return { "r": r, "g": g, "b": b, "a": a };
     };
 
-    // The format of an RGB value in hexadecimal notation is a '#' immediately followed by either three or six hexadecimal characters. http://www.w3.org/TR/CSS2/syndata.html#color-units
+    // The format of an RGB value in hexadecimal notation is a '#' immediately followed by either three
+    // or six hexadecimal characters. http://www.w3.org/TR/CSS2/syndata.html#color-units
     var parseHex = function (arg) {
-        // The three-digit RGB notation (#rgb) is converted into six-digit form (#rrggbb) by replicating digits, not by adding zeros.
-        // For example, #fb0 expands to #ffbb00.
+        // The three-digit RGB notation (#rgb) is converted into six-digit form (#rrggbb) by
+        // replicating digits, not by adding zeros. For example, #fb0 expands to #ffbb00.
         var hex3ToHex6 = function (hex3) {
             var hex6 = "";
 
@@ -324,7 +328,7 @@ var swatch = (function (document, window) {
         // Then we can, again, find a point (R1, G1, B1) along the bottom three faces of the RGB cube, with the same hue and chroma
         // as our color (using the intermediate value X for the second largest component of this color):
         var hPrime = h / 60;
-        var x = c * (1 - Math.abs((hPrime % 2) - 1))
+        var x = c * (1 - Math.abs((hPrime % 2) - 1));
 
         var rPrime = 0;
         var gPrime = 0;
@@ -361,7 +365,8 @@ var swatch = (function (document, window) {
             bPrime = x;
         }
 
-        // Finally, we can find R, G, and B by adding the same amount to each component, to match lightness:
+        // Finally, we can find R, G, and B by adding the same amount to each
+        // component, to match lightness:
         var m = l - (1 / 2) * c;
 
         var r = rPrime + m;
@@ -378,16 +383,17 @@ var swatch = (function (document, window) {
     * Remove leading and trailing whitespace from a string.
     */
     var trim = function (text) {
-        return text.replace(/^\s*(\S*(?:\s+\S+)*)\s*$/, "$1")
+        return text.replace(/^\s*(\S*(?:\s+\S+)*)\s*$/, "$1");
     };
 
-    // This function takes a color string and applies heuristics to determine what the input format is, then applies one of the other transform functions.
+    // This function takes a color string and applies heuristics to determine what the input
+    // format is, then applies one of the other transform functions.
     var parse = function (color) {
         var regexRGB = /rgb\(/;
         var regexRGBA = /rgba\(/;
         var regexHex = /#/;
 
-        var color = trim(color);
+        color = trim(color);
 
         var retVal;
 
