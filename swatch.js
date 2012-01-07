@@ -224,7 +224,6 @@ var swatch = (function (document, window) {
     * representations. Non-ES5 environments will get plain object literals.
     */
     var createSwatch = function (r, g, b, a) {
-        var PROPERTIES_LIST = ["r", "g", "b", "a", "rgb", "rgba", "hex"];
         var data = {};
 
         data.r = r;
@@ -241,8 +240,10 @@ var swatch = (function (document, window) {
         // and http://stackoverflow.com/questions/4819693/working-around-ie8s-broken-object-defineproperty-implementation
         var canDefine = (!!Object.defineProperty && Object.defineProperty({}, "x", { get: function () { return true; } }).x);
         if (canDefine) {
-            for (var i = 0; i < PROPERTIES_LIST.length; i++) {
-                Object.defineProperty(data, PROPERTIES_LIST[i], { writable: false, enumerable: true, configurable: false });
+            for (var prop in data) {
+                if (data.hasOwnProperty(prop)) {
+                    Object.defineProperty(data, prop, { writable: false, enumerable: true, configurable: false });
+                }
             }
         }
 
