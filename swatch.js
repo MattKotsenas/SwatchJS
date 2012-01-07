@@ -211,7 +211,7 @@ var swatch = (function (document, window) {
         if (isNaN(val)) { val = 0; }
 
         return (((val % 360) + 360) % 360);
-    }
+    };
 
     /*
     * Takes an int value and converts to a base-16 hex value. Prepends zeros if needed to ensure that all
@@ -390,8 +390,8 @@ var swatch = (function (document, window) {
             var deltaB = (((maxColor - b) / 6) + (deltaColor / 2)) / deltaColor;
 
             if (r === maxColor) { h = deltaB - deltaG; }
-            else if (g === maxColor) { h = (1 / 3) + r - b; }
-            else if (b === maxColor) { h = (2 / 3) + g - r; }
+            else if (g === maxColor) { h = (1 / 3) + deltaR - deltaB; }
+            else if (b === maxColor) { h = (2 / 3) + deltaG - deltaR; }
             // No 'else' statement is needed because maxColor = max(r,g,b), so one of the three statements will be true
 
             if (h < 0) { h += 1; }
@@ -403,7 +403,7 @@ var swatch = (function (document, window) {
         s = Math.round(s * 100);
         l = Math.round(l * 100);
 
-        return { "h": h, "s": s, "l": l, "a": a }
+        return { "h": h, "s": s, "l": l, "a": a };
     };
 
     /*
